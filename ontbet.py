@@ -384,7 +384,7 @@ def Withdraw(address, amount):
             Delete(ctx, blakey)
         else:
             Put(ctx, blakey, fromBalance - amount)
-        Notify("withdraw", ontam)
+        Notify(["withdraw", ontam])
         return True
     return False
 
