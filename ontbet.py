@@ -35,16 +35,28 @@ ONT = 2
 TNT = 3
 TONT = 4
 
-DICE_MAX = 95
-DICE_MIN = 4
+DICE_MAX = 96
+DICE_MIN = 2
 
 GAME_TOKEN_PEER_ONT = 10
 GAME_TOKEN_PEER_ONG = 20  # 挖矿所用的分发的比例，每20个ong得1个token
 INVITER_FEE = 200  # 邀请者，返利比例投注额的0.5%
 
-ONG_MIN = 10000000  # bigerinteger充当小数
+ONG_MIN = 100000000  # bigerinteger充当小数
 OPE4_MIN = 1000000000
-TONT_MIN = 10000000
+TONT_MIN = 100000000
+
+
+#error code定义
+
+ERROR_AMONT = 1  #错误的下注额，小于最小下注额
+ERROR_NUMBER = 2 #错误的下注数字，范围不在最小到最大数字之间
+ERROR_ADDRESS = 3 #账户地址出错
+ERROR_BANLANCE = 4 #账户余额不足
+ERROR_TONT_WITHDRAW = 5 #提取TONT出错，提取数量必须为整数
+ERROR_AUTH = 6#认证失败
+
+
 
 OEP4Contract = RegisterAppCall('49f0908f08b3ebce1e71dc5083cb9a8a54cc4a24', 'operation', 'args')
 
@@ -55,6 +67,7 @@ def Main(opration, args):
 
     if opration == "Guess":
         if len(args[0]) != 20:
+            ErrorNotify(ERROR_ADDRESS)
             return False
         if CheckWitness(args[0]):
             if len(args) == 5:
@@ -71,6 +84,7 @@ def Main(opration, args):
         if len(args) != 2:
             return False
         if len(args[0]) != 20:
+            ErrorNotify(ERROR_ADDRESS)
             return False
         return Withdraw(args[0],args[1])
     
@@ -115,17 +129,17 @@ def Guess(player, tokentype, number, amount, inviter):
 
 def guessForONG(player, number, amount, inviter):
     constracthash = GetExecutingScriptHash()
-    bla = balanceOf(constracthash, ONG)
-    ONG_max = bla / 100
-    if amount < ONG_MIN or amount > ONG_max:
-        Notify(['error',"BET amount error"])
+    #bla = balanceOf(constracthash, ONG)
+    #ONG_max = bla / 100
+    if amount < ONG_MIN: #or amount > ONG_max:
+        ErrorNotify(ERROR_AMONT)
         return False
     if CheckRange(number) == False:
-        Notify(['error',"BET number error"])
+        ErrorNotify(ERROR_NUMBER)
         return False
 
     if transferONG(player, constracthash, amount) == False:  # 转移投注金额
-        Notify(["error","send ong error"])
+        ErrorNotify(ERROR_BANLANCE)
         return False
 
     id = Get(ctx, BET_ID_PREFIX)
@@ -136,11 +150,6 @@ def guessForONG(player, number, amount, inviter):
     if number > sysnumber:
         winreward = GetBetReward(number, amount)
         transferONG(constracthash, player, winreward)
-    
-    guess = ['guess',player, ONG, amount, id + 1, number, sysnumber]
-    gussresult = Serialize(guess)
-    key = concat(GUESS_PREFIX,id+1)
-    Put(ctx,key,gussresult)
     
     Notify(['guess', ONG,player, amount, id + 1, number, sysnumber])
     rewardToken(player, constracthash, amount, ONG)
@@ -153,19 +162,18 @@ def guessForONG(player, number, amount, inviter):
 
 def guessForTONT(player, number, amount, inviter):
     constracthash = GetExecutingScriptHash()
-    bla = balanceOf(constracthash, TONT)
+    #bla = balanceOf(constracthash, TONT)
     TONT_max = bla / 100
-    if amount < TONT_MIN or amount > TONT_max:
-        Notify(['error',"BET amount error"])
+    if amount < TONT_MIN: #or amount > TONT_max:
+        ErrorNotify(ERROR_AMONT)
         return False
     if CheckRange(number) == False:
-        Notify(['error',"BET number error"])
+        ErrorNotify(ERROR_NUMBER)
         return False
 
     playbla = balanceOf(player, TONT)
     if playbla < amount:
-        Notify([playbla,amount])
-        ErrorNotify("send TONT error")# 转移投注金额
+        ErrorNotify(ERROR_BANLANCE)
         return False
 
         
@@ -192,18 +200,18 @@ def guessForTONT(player, number, amount, inviter):
 
 def guessForOEP4(player, number, amount, inviter):
     constracthash = GetExecutingScriptHash()
-    bla = balanceOf(constracthash, TNT)
-    OEP_MAX = bla / 100
-    if amount < OPE4_MIN or amount > OEP_MAX:
-        Notify(['error',"BET amount error"])
+    #bla = balanceOf(constracthash, TNT)
+    #OEP_MAX = bla / 100
+    if amount < OPE4_MIN: #or amount > OEP_MAX:
+        ErrorNotify(ERROR_AMONT)
         return False
     if CheckRange(number) == False:
-        Notify(['error',"BET number error"])
+        ErrorNotify(ERROR_NUMBER)
         return False
 
     playbla = balanceOf(player, TNT)
     if playbla < amount:
-        Notify(["error","send TNT error"])# 转移投注金额
+        ErrorNotify(ERROR_BANLANCE)
         return False
 
     id = Get(ctx, BET_ID_PREFIX)
@@ -313,6 +321,7 @@ def banlanceTONT(address):
     return GetStorage(key)
 
 def GetBetReward(roll_border, amount):
+    roll_border = roll_border - 1 #1-100,算法是基于0-99的
     reward_amt = amount * (100 - FEE) / roll_border
     return reward_amt
 
@@ -368,13 +377,13 @@ def Withdraw(address, amount):
     if CheckWitness(address) != True:
         return False
     if amount % FACTOR != 0:
-        ErrorNotify("提取得数量必须为整数")
+        ErrorNotify(ERROR_TONT_WITHDRAW)
         return False
     blakey = concat(BALANCE_PREFIX, address)
     fromBalance = Get(ctx, blakey)
 
     if amount > fromBalance:
-        ErrorNotify("amount more than balance")
+        ErrorNotify(ERROR_BANLANCE)
         return False
 
     ontam = amount / FACTOR
@@ -391,18 +400,18 @@ def Withdraw(address, amount):
 def Recharge(fromaddr,toaddr,amount):
 
     if len(fromaddr) != 20 or len(toaddr) != 20:
-        ErrorNotify("address is error")
+        ErrorNotify(ERROR_ADDRESS)
         return False
     
     if CheckWitness(fromaddr) != True:
-        ErrorNotify("error Witness")
+        ErrorNotify(ERROR_AUTH)
         return False
 
     constracthash = GetExecutingScriptHash()
     res = transferONT(fromaddr,constracthash,amount)
 
     if res != True:
-        ErrorNotify("transfer ont error")
+        ErrorNotify(ERROR_BANLANCE)
         return False
 
     key = concat(BALANCE_PREFIX,toaddr)
