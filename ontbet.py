@@ -56,7 +56,8 @@ ERROR_BANLANCE = 4 #账户余额不足
 ERROR_TONT_WITHDRAW = 5 #提取TONT出错，提取数量必须为整数
 ERROR_AUTH = 6#认证失败
 
-
+SUCCESS_RECHARGE = 10 #
+SUCCESS_Withdraw = 11 #
 
 OEP4Contract = RegisterAppCall('49f0908f08b3ebce1e71dc5083cb9a8a54cc4a24', 'operation', 'args')
 
@@ -154,16 +155,16 @@ def guessForONG(player, number, amount, inviter):
     Notify(['guess', ONG,player, amount, id + 1, number, sysnumber])
     rewardToken(player, constracthash, amount, ONG)
     if inviter != player:
-        rewardInviterFEE(inviter, constracthash, amount, ONG)
+        rewardInviterFEE(inviter, constracthash, amount, TNT)
     else:
-        rewardInviterFEE(teamaddress, constracthash, amount, ONG)
+        rewardInviterFEE(teamaddress, constracthash, amount, TNT)
     return True
 
 
 def guessForTONT(player, number, amount, inviter):
     constracthash = GetExecutingScriptHash()
     #bla = balanceOf(constracthash, TONT)
-    TONT_max = bla / 100
+    #TONT_max = bla / 100
     if amount < TONT_MIN: #or amount > TONT_max:
         ErrorNotify(ERROR_AMONT)
         return False
@@ -192,9 +193,9 @@ def guessForTONT(player, number, amount, inviter):
     Notify(['guess', TONT,player, amount, id + 1, number, sysnumber])
     rewardToken(player, constracthash, amount, TONT)
     if inviter != player:
-        rewardInviterFEE(inviter, constracthash, amount,TONT)
+        rewardInviterFEE(inviter, constracthash, amount,TNT)
     else:
-        rewardInviterFEE(teamaddress, constracthash, amount, TONT)
+        rewardInviterFEE(teamaddress, constracthash, amount, TNT)
     return True
 
 
@@ -237,6 +238,8 @@ def rewardInviterFEE(inviter, constracthash, playeramount, tokenType):
         return True
     if tokenType == TONT:
         transferTONT(constracthash,inviter,inv)
+    if tokenType == TNT:
+        transferOEP4(constracthash,inviter,inv)
         return True
     return False
 
@@ -303,8 +306,9 @@ def transferTONT(fromaddr,toaddr,amount):
         return False
     
     tbla = GetStorage(tkey)
-
     PutStorage(tkey,tbla+amount)
+    fbla = fbla - amount
+    PutStorage(fbla)
     return True
 def transferOEP4(fromaddr, toaddr, amount):
     params = [fromaddr, toaddr, amount]
@@ -350,6 +354,7 @@ def GeneratorRandom(id):
 
     res = abs(resseed)
     number = res % 100
+    number = number + 1
     return number
 
 
@@ -393,7 +398,7 @@ def Withdraw(address, amount):
             Delete(ctx, blakey)
         else:
             Put(ctx, blakey, fromBalance - amount)
-        Notify(["withdraw", ontam])
+        Notify(["success", ontam])
         return True
     return False
 
@@ -418,6 +423,7 @@ def Recharge(fromaddr,toaddr,amount):
     tobla = GetStorage(key)
     tobla = tobla + amount * FACTOR
     PutStorage(key,tobla)
+    Notify(['success',amount])
 
     return True
     
