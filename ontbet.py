@@ -308,7 +308,7 @@ def transferTONT(fromaddr,toaddr,amount):
     tbla = GetStorage(tkey)
     PutStorage(tkey,tbla+amount)
     fbla = fbla - amount
-    PutStorage(fbla)
+    PutStorage(fbla,fbla)
     return True
 def transferOEP4(fromaddr, toaddr, amount):
     params = [fromaddr, toaddr, amount]
