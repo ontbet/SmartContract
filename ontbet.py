@@ -222,7 +222,7 @@ def guessForOEP4(player, number, amount, inviter):
 
     if number > sysnumber:
         winreward = GetBetReward(number, amount)
-        win = winreward - amount
+        #win = winreward - amount
         transferOEP4(constracthash, player, win)
     else:
         transferOEP4(player, constracthash, amount)
